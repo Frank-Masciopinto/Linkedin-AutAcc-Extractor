@@ -1,0 +1,28 @@
+{
+	"name": "BEXTEN_Auto_Acc - Data Research and Enrichment",
+	"version": "2.00",
+	"description": "Extract lead information from any company or profile Linkedin page",
+	"manifest_version": 3,
+	"background": {
+		"service_worker": "background.js"
+	},
+	"permissions": [
+		"tabs",
+		"notifications",
+		"activeTab",
+		"storage",
+		"scripting"
+	],
+	"host_permissions": [
+		"http://*/*",
+		"https://*/*"
+	],
+	"icons": {
+		"42": "Images/42.png",
+		"128": "Images/128.png"
+	},
+	"action": {
+		"default_title": "BEXTEN_Auto_Acc - Data Research and Enrichment",
+		"default_popup": "html/popup.html"
+	}
+}

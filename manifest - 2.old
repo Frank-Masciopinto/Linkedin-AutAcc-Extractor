@@ -1,0 +1,24 @@
+{
+	"name": "BEXTEN_Auto_Acc - Data Research and Enrichment",
+	"version": "1.43",
+	"update_url": "https://api.bextra.io/ce/check_update/BEXTEN",
+	"description": "Extract lead information from any company or profile Linkedin page",
+	"manifest_version": 2,
+	"options_ui": {
+		"page": "html/options.html",
+		"open_in_tab": false
+	},
+	"background":
+    {
+      "persistent": true,
+      "scripts": [ "background.js" ]
+    },
+	"permissions": [
+		"http://*/*", "https://*/*", "tabs", "webRequest", "notifications","activeTab", "clipboardRead", "clipboardWrite"],
+
+	"icons" : { "42": "Images/42.png", "128": "Images/128.png" },
+	"browser_action": {
+		"default_title": "BEXTEN_Auto_Acc - Data Research and Enrichment",
+		"default_popup": "html/popup.html"
+	}
+}
