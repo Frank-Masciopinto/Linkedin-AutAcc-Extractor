@@ -20,62 +20,39 @@ let order_index = 1;
 let set_back_for_awhile = 1;
 
 
-const storageCache = {};
-
-chrome.storage.onChanged.addListener((changes, area) => {
-	if(area === "sync") {
-		chrome.storage.sync.get(null, (data) => {
-		  Object.assign(storageCache, data);
-		});
-	}
-	else if(area === "local") {
-		chrome.storage.local.get(null, (data) => {
-		  Object.assign(storageCache, data);
-		});
-	}
-});
-
 chrome.runtime.onInstalled.addListener(async (details) => {
+    console.log("ONINSTALL")
     if (details.reason == "install") {
+        let today_counter = {
+            index: 0,
+            accounts: 0,
+            contacts: 0,
+            failures: 0
+        }
+        let today_Date = new Date()
         //get_linkedin_login()     // Login into linkedin should be done only after getting the campaign
 		await LS.setItem("number_of_pages_to_scroll", 5);
+		await LS.setItem("Counters_last_date_checked", today_Date.toString());
+		await LS.setItem("Counters", [today_counter]);
 		await LS.setItem("memory_auto_list_manual", "OFF");
 		await LS.setItem("AutoLIST-ON-OFF-TOGGLE-Position", "OFF");
 		await LS.setItem("list_code", "");
-		
-//        window.localStorage.setItem("Linkedin_Leads_Count", 0)
-//        window.localStorage.setItem("number_of_pages_to_scroll", "5")
-//        window.localStorage.setItem("memory_auto_list_manual", "OFF")
-//        window.localStorage.setItem("AutoLIST-ON-OFF-TOGGLE-Position", "OFF")
-//        window.localStorage.setItem("Messages", "")
-//        window.localStorage.setItem("list_code", "")
-       //get_linkedin_login()
-        //alert("Please add now your User Id and Running Id by clicking the extension button")
     }
-	else if(details.reason == "update") {
-		chrome.storage.sync.get(null, (data) => {
-		  Object.assign(storageCache, data);
-		});
-		chrome.storage.local.get(null, (data) => {
-		  Object.assign(storageCache, data);
-		});
-	}
-
 });
-
-
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    if (request.message === "fetch_phone") {
+    if (request.message === "fetch_phone") {  //called from content.js and content_sales_navigator.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"fetch_phone\" ==> One message received", request.payload);
-        fetch_Phone(request.payload, true);
         let fetched_info = await get_Website_email(request.payload.Company_Domain)
         console.log("***********HERE****************")
         console.log(fetched_info)
         request.payload.Extra_phones = fetched_info.Phone
         request.payload.Email = fetched_info.Email
+        request.payload.Company_Facebook = fetched_info.facebook
+        request.payload.Company_Instagram = fetched_info.instagram
+        request.payload.Company_Twitter = fetched_info.twitter
         return true;
     }
-    else if (request.message === "Automation_Extracted_ACCOUNT") {
+    else if (request.message === "Automation_Extracted_ACCOUNT") { //called from content.js
         console.log(request.payload);
         is_Automation = true;
         let fetched_info = await get_Website_email(request.payload.Company_Domain)
@@ -83,21 +60,26 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         console.log(fetched_info)
         request.payload.Extra_phones = fetched_info.Phone
         request.payload.Email = fetched_info.Email
+        request.payload.Company_Facebook = fetched_info.facebook
+        request.payload.Company_Instagram = fetched_info.instagram
+        request.payload.Company_Twitter = fetched_info.twitter
         call_API_fetch(request.payload, "Company")
         return true;
     } 
-    else if (request.message === "Contact Experience Fetched") {
+    else if (request.message === "Contact Experience Fetched") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"Contact Experience Fetched\" ==> request.all_experience: ", request.all_experience);
         job_experience_array_new_url = request.all_experience
         return true;
-    } else if (request.message === "What_are_the_Linkedin_Credentials?") {
+    } 
+	else if (request.message === "What_are_the_Linkedin_Credentials?") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"What_are_the_Linkedin_Credentials?\" ==> request: ", request);
         sendResponse({
             user: await LS.getItem("userId"),
             password: await LS.getItem("passwd")
         });
         return true;
-    } else if (request.message === "AUTOLIST_COMPANY_fetch_phone") {
+    } 
+	else if (request.message === "AUTOLIST_COMPANY_fetch_phone") { //called from content.js and content_sales_navigator.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"AUTOLIST_COMPANY_fetch_phone\" ==> request: ", request);
         await LS.setItem("AUTOLIST_Company_About_Received", "true")
         if (request.payload.Phone != null || request.payload.Phone != undefined) {
@@ -107,7 +89,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return true;
     } 
-    else if (request.message === "call_API_Contact") {
+    else if (request.message === "call_API_Contact") { //called from content.js and content_sales_navigator.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"call_API_Contact\" ==> request.payload: ", request.payload);
         if (request.payload.email == "yes") {
             var existCondition = setInterval(async function () {
@@ -149,21 +131,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return true;
     } 
-    else if (request.message === "how_Many_Pages_to_Scroll?") {
-        let pages = await LS.getItem("number_of_pages_to_scroll")
-        sendResponse({
-            number_Of_Pages: pages
-        });
-        return true;
-    } 
-    else if (request.message === "fetched_company_ID") {
+//    else if (request.message === "how_Many_Pages_to_Scroll?") {	//// No function is calling it
+//        let pages = await LS.getItem("number_of_pages_to_scroll")
+//        sendResponse({
+//            number_Of_Pages: pages
+//        });
+//        return true;
+//    } 
+    else if (request.message === "fetched_company_ID") { //called from content.js
         async function update_companyID() {
             await LS.setItem("company_ID", request.company_ID);
         }
         update_companyID()
         return true;
     } 
-    else if (request.message === "Connect?") {
+    else if (request.message === "Connect?") { //called from content.js and content_sales_navigator.js
         if (await LS.getItem("Message_Connect") == "null") {
             console.log("Message for connect is null!")
             sendResponse({
@@ -179,27 +161,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return;
     } 
-    else if (request.message === "Company_Page_Not_Found") {
+    else if (request.message === "Company_Page_Not_Found") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"Company_Page_Not_Found\" ==> request.payload: ", request.payload);
         await LS.setItem("AUTOLIST_Company_About_Fetched", "404")
         automation_extraction_completed = "404"
         return true;
     } 
-    else if (request.message === "is_List_Mode_On?") {
-        if (await LS.getItem("LIST_MODE_IS_ON?") == "true") {
-            sendResponse({answer: "true"});
-        } else {
-            sendResponse({answer: "false"});
-        }
-        return true;
-    } 
-    else if (request.message === "scrape_All_Accounts_AUTOMATICALLY") {
-        console.log("chrome.runtime.onMessage.addListener ==> if \"scrape_All_Accounts_AUTOMATICALLY\" ==> request.all_accounts: ", request.all_accounts);
-        scrape_all_accounts_AUTOMATIC(request.all_accounts)
-        await LS.setItem("LIST_MODE_IS_ON?", "true")
-        return true;
-    } 
-    else if (request.message === "new_AUTO_Contact_Info_Fetched") {
+    else if (request.message === "new_AUTO_Contact_Info_Fetched") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"new_AUTO_Contact_Info_Fetched\" ==> request.contact_info: ", request.contact_info)
         if (request.contact_info.email == "yes") {
             var existCondition = setInterval(async function () {
@@ -208,6 +176,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     clearInterval(existCondition);
                     request.contact_info.email = await LS.getItem("email_found")
                     request.contact_info.experience = job_experience_array_new_url
+                    request.contact_info.ce_reg_key = await LS.getItem("ce_reg_key")
                     setTimeout(async function () {
                         call_API_fetch(request.contact_info, "Contact")
                         let list_to_Extract = await LS.getItem('AUTOLIST_Extraction_list')
@@ -259,14 +228,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return true;
     } 
-    else if (request.message === "API_contacts_process_message") {
-        console.log("chrome.runtime.onMessage.addListener ==> if \"API_contacts_process_message\" ==> request: ", request);
-        await LS.setItem("API_contacts_auto_enrichment_is_on?", "true")
-        console.log(request.all_contacts)
-        enrich_contacts_by_li_profile(request.all_contacts);
-        return true;
-    } 
-    else if (request.message === "email_Info") {
+    else if (request.message === "email_Info") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"email_Info\" ==> request: ", request);
         if (request.email == null) {
             await LS.setItem("email_found", "Not Found");
@@ -276,12 +238,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return true;
     } 
-    else if (request.message === "STOP_LIST_SCRAPING") {
-        console.log("chrome.runtime.onMessage.addListener ==> if \"STOP_LIST_SCRAPING\" ==> request: ", request);
-        await LS.setItem("LIST_MODE_IS_ON?", "false")
-        chrome.runtime.reload()
-    } 
-    else if (request.message === "call_API_Contact_extract_Next_Lead") {
+    else if (request.message === "call_API_Contact_extract_Next_Lead") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"call_API_Contact_extract_Next_Lead\" ==> request.contact_info: ", request.contact_info);
         console.log("One message received", request.contact_info)
         if (request.contact_info.email == "yes") {
@@ -307,12 +264,12 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return true;
     } 
-    else if (request.message === "Contact_Enrichment_Already Extracted") {
+    else if (request.message === "Contact_Enrichment_Already Extracted") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"Contact_Enrichment_Already\" ==> ", request.payload);
         await LS.setItem("Contact-Enrichment-Extracted-and-Sent-to-API", "true")
         return true;
     } 
-    else if (request.message === "One_Contact_Enrichment_Extraction_Completed") {
+    else if (request.message === "One_Contact_Enrichment_Extraction_Completed") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"One_Contact_Enrichment_Extraction_Completed\" ==> request.contact_info: ", request.contact_info);
         if (request.contact_info.email == "yes") {
             var existCondition = setInterval(async function () {
@@ -337,7 +294,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         return true;
     } 
-    else if (request.message === "All_Leads_list") {
+    else if (request.message === "All_Leads_list") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"All_Leads_list\" ==> request: ", request);
         await LS.setItem("tab_Id_extract_All_function", sender.tab.id)
         console.log("One message received", request.leads_list)
@@ -365,35 +322,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         check_then_Open_Tab_Next_Employe()
         return true;
     } 
-    else if (request.message === "All_Employees_enrichment_mode") {
-        console.log("chrome.runtime.onMessage.addListener ==> if \"All_Employees_enrichment_mode\" ==> request: ", request);
-        await LS.setItem("tab_Id_extract_All_function", sender.tab.id)
-        console.log("One message received", request.leads_list)
-        async function check_then_Open_Tab_Next_Employe() {
-            while (true) {
-                if (request.leads_list.length != 0) {
-                    let leads_to_Check = request.leads_list[0]
-                        let check_if_Employee_Was_Already_Extracted = await check_Record_Existance(leads_to_Check, "Contact")
-                        if (check_if_Employee_Was_Already_Extracted == false) {
-                            request.leads_list.shift()
-                            window.open(leads_to_Check + '?extr_id=', "Autolist-Contact", "height=100,width=200", "_blank");
-                            await LS.setItem('Extraction_list', request.leads_list)
-                            break
-                        }
-                        //if lead was already extracted, remove it from array and continue loop.
-                        else {
-                            request.leads_list.shift()
-                        }
-                } else if (request.leads_list.length == 0) {
-                    await LS.setItem('Extraction_list', null)
-                    break
-                }
-            }
-        }
-        check_then_Open_Tab_Next_Employe()
-        return true;
-    } 
-    else if (request.message === "AUTOLIST_All_Contacts_for_keyword_list") {
+    else if (request.message === "AUTOLIST_All_Contacts_for_keyword_list") { //called from content.js
         console.log("message: Collected All Employees for Keyword, NEXT is Extraction Employee Data", request.leads_list)
         if (request.leads_list.length < 1) {
             await LS.setItem("AUTOLIST_All_Employees_for_this_keyword_Extracted", "true")
@@ -422,8 +351,42 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
 })
 
+//Check how many days have passed for leads counter
+async function counter_daily_check() {
+    let counters = await LS.getItem("Counters")
+    console.log(counters)
+    let today_counter = {
+        index: counters[counters.length - 1].index + 1,
+        accounts: 0,
+        contacts: 0,
+        failures: 0
+    }
+    let last_date_checked = new Date(await LS.getItem("Counters_last_date_checked"))
+    let oneDay = 86400000
+    let today_Date = new Date()
+    console.log("Checking if 1 day passed")
+    let days_Passed_Since_last_check = Math.round(Math.abs((today_Date - last_date_checked) / oneDay));
+    console.log(days_Passed_Since_last_check)
+    //If 1 days passed since last check, add new today counter
+    if (days_Passed_Since_last_check > 0) {
+        counters.push(today_counter)
+        await LS.setItem("Counters_last_date_checked", today_Date.toString());
+        await LS.setItem("Counters", counters);
+    }
+    //Delete oldest counter record if more than 7 counters
+    if (counters.length > 7) {
+        counters.shift()
+    }
+}
+setTimeout(() => {
+    counter_daily_check()
+}, 250);
+
 
 //When change tab
+/*****************************************************************************************************/
+/**	We should inject JS only to a single working tab and not to any linkedin tab 					**/
+/*****************************************************************************************************/
 chrome.tabs.onActivated.addListener(tab => {
     //Check if Linkedin is in the url
     chrome.tabs.get(tab.tabId, function (tab) {
@@ -528,7 +491,6 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     }
 });
 
-
 //Logging Error to API
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -591,7 +553,7 @@ function check_than_Insert_JS(js_File_Name, css_File_Name, tabId) {
                     }, () => {
                         const lastError = chrome.runtime.lastError;
                         if (lastError) {
-                        return notify(lastError);
+                            console.log(lastError)
                         }
                         chrome.scripting.executeScript({
                         target: {tabId: tabId},
@@ -615,70 +577,6 @@ function check_than_Insert_JS(js_File_Name, css_File_Name, tabId) {
 			}
 		});
 }
-async function scrape_all_accounts_AUTOMATIC(companies_List_from_API) {
-    console.log('scrape_all_accounts_AUTOMATIC(companies_List_from_API)', companies_List_from_API.length);
-        let total_companies = companies_List_from_API.length;
-        chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'Images/128.png',
-            title: 'Scrapping ' + total_companies + ' Automatic',
-            message: 'Starting',
-            priority: 1
-        })
-        let scraped_company_Total = 0;
-        for (let i = 0; i < companies_List_from_API.length; i++) { //10
-            let clean_url = companies_List_from_API[i].linkedin_page.match(/^(.*?)linkedin.(\w+)\/(company|school)\/([^/]*)/)[0];
-            // let check_if_Already_Extracted = await check_Record_Existance(clean_url, "Company");
-            // if (check_if_Already_Extracted == false) {
-                let keywords = await LS.getItem("Keywords");
-                chrome.runtime.sendMessage({
-                    message: "message_For_Console",
-                    message_to_display: `Extracting: ${companies_List_from_API[i].linkedin_page}`
-                })
-                let result_Company_Extraction = await extract_Next_Company_Lead(clean_url);
-                if (result_Company_Extraction == "Fetched") { //update popup counters if fetched
-                    scraped_company_Total += 1;
-                    add_Company_scraped_to_Database(clean_url);
-                    chrome.runtime.sendMessage({
-                        message: "Update-Company-Counter"
-                    })
-                    if (keywords != null) {
-                        let keywords_array = JSON.parse(keywords);
-                        console.log(keywords_array);
-                        let key_length = keywords_array.length;
-                        console.log("there are keywords next loop to extract employee");
-                        for (let it = 0; it < key_length; it++) {
-                            if (companies_List_from_API[i].send_connect_request == true) {
-                                await LS.setItem("Message_Connect", keywords_array[i].msg_template[0].body);
-                            } else {
-                                await LS.setItem("Message_Connect", null);
-                            }
-                            await extract_All_Employees_from_Each_Keyword(companies_List_from_API[i], keywords_array[i].key, result_Company_Extraction);
-                        }
-                    }
-                }
-                if (i == companies_List_from_API.length - 1) {
-                    await LS.setItem("API-processed-Accounts", "0");
-                    await LS.setItem("API-processed-Companies", "0");
-                }
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'Images/128.png',
-                    title: 'Scraped ' + scraped_company_Total + ' Companies',
-                    message: 'From total of: ' + companies_List_from_API.length,
-                    priority: 1
-                })
-           // }
-        }
-        chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'Images/128.png',
-            title: 'Automatic Scrapping is Finished',
-            message: 'Scraped ' + scraped_company_Total + ' out of ' + companies_List_from_API.length + ' Companies',
-            priority: 1
-        })
-        await LS.setItem("LIST_MODE_IS_ON?", "false")
-    };
 
 async function scrape_company_About_and_employees_AUTO(company_url) {
         console.log("Scraping about and employees now!     scrape_company_About_and_employees_AUTO(): " + company_url)
@@ -818,209 +716,39 @@ console.log("Link contains Showcase, No employees to extract, extracting next co
     })
 }
 
-async function extract_contact_to_enrich(lead_json) {
-    console.log("extract_contact_to_enrich(lead_json)", lead_json);
-    return new Promise((res, rej) => {
-        let url;
-        if (typeof lead_json === 'string') {
-            url = lead_json.match(/^(.*?)linkedin.(\w+)\/in\/([^/]*)/)[0]
-        } else {
-            url = lead_json.linkedin_page.match(/^(.*?)linkedin.(\w+)\/in\/([^/]*)/)[0]
-        }
-        if (!url.includes("/showcase/") && result_extract_Company == "Fetched") {
-            window.open(url, "AllEmployeesExtraction", "height=100,width=200", "_blank");
-
-            var existCondition = setInterval(async function () {
-                //wait for getting email
-                if (await LS.getItem("AUTOLIST_All_Employees_for_this_keyword_Extracted") == "true") {
-                    clearInterval(existCondition);
-                    console.log("All_Employees_for_this_keyword_Extracted")
-                    await LS.setItem("AUTOLIST_All_Employees_for_this_keyword_Extracted", "false")
-                    res()
-                }
-                //All Contacts LISTED
-                else {
-                    console.log("ALL Employees infos not fetched yet, in loop...")
-                }
-            }, 6000);
-        } else {
-            chrome.runtime.sendMessage({
-                message: "message_For_Console",
-                message_to_display: `No Employees to extract for this company`
-            })
-            if (result_extract_Company == "404") {
-                console.log("404 No employees to extract, extracting next company!")
-                res()
-            } else {
-                console.log("Link contains Showcase, No employees to extract, extracting next company!")
-                res()
-            }
-        }
-    })
-}
-function fetch_Phone(lead_Info, phone_Bool) {
-    return new Promise(async (resolve, reject) => {
-        //Search for company Phone on website
-        let company_Phone;
-        console.log(lead_Info.Company_Domain)
-        let phone_n;
-        if (lead_Info.Company_Domain != "null") {
-            const fetch_Response = fetch(lead_Info.Company_Domain).then(function (response) {
-                if (!response.ok) {
-                    reject()
-                }
-                return response.text()
-            }).then(async (text) => {
-                let parser = new DOMParser();
-                let doc = parser.parseFromString(text, "text/html")
-                    //fetch social media links
-                    let company_Facebook;
-                let company_Twitter;
-                let company_Instagram;
-                let email;
-                try {
-                    company_Facebook = doc.querySelector("a[href^='https://www.facebook.com/']").href
-                } catch {
-                    company_Facebook = "Null"
-                }
-                try {
-                    company_Twitter = doc.querySelector("a[href^='https://twitter.com/']").href
-                } catch {
-                    company_Twitter = "Null"
-                }
-                try {
-                    company_Instagram = doc.querySelector("a[href^='https://www.instagram.com/']").href
-                } catch {
-                    company_Instagram = "Null"
-                }
-                lead_Info.Company_Facebook = company_Facebook
-                lead_Info.Company_Instagram = company_Instagram
-                lead_Info.company_Twitter = company_Twitter
-                    try {
-                        var container = doc.querySelector('a[href^="mailto:"]')
-                            email = (container.href).substring(7);
-                        email = email.replace("%20", "")
-                            if (phone_Bool == false) {
-                                let phone_confirmed;
-                                phone_n = doc.querySelector('a[href ^= "tel:"]')
-                                    if (phone_n != null) {
-                                        console.log(phone_n.href.substring(4))
-                                        phone_confirmed = phone_n.href.substring(4)
-                                    } else {
-                                        try {
-                                            console.log("INSIDE PHONE REGEX")
-                                            phone_n = text.match(/([(+]{1,2}[\d]{3}([) ]|[-]|[)]){1}[\d]{3}([-. ])?[\d]{4})|(([(]|[(+]){0,2}[\d]{1,3}[) -]{1,2}(([\d]{7,10})|([\d]{3,4}[ -\.][\d]{6,7}))|((\d){3}[-]{1}(\d){3})[-]{1}[\d]{3,4})+/)
-                                                if (phone_n != null) {
-                                                    phone_confirmed = phone_n[0]
-                                                }
-                                        } catch {
-                                            console.log("NO PHONE FOUND WITH REGEX")
-                                            phone_confirmed = "Null"
-                                        }
-                                    }
-                                    lead_Info.Phone = phone_confirmed
-                            }
-                            lead_Info.Email = email
-                            //If auto confirm toggle is OFF, ask for confirmation
-                            if (await LS.getItem("auto-confirmation-ON-OFF-TOGGLE") == "OFF" && await LS.getItem("auto-confirmation-LIST-MODE") == "OFF" && await LS.getItem("auto-confirmation-LIST-CONTACTS-MODE") == "OFF") {
-                                var r = confirm(`Leads Information Below, Confirm Please\n\nName: ${lead_Info.Name}\nIndustry: ${lead_Info.Industry}\nCompany_Domain: ${lead_Info.Company_Domain}\nCompany Size: ${lead_Info.Company_size}\nAddress: ${lead_Info.Address}\nYear Founded: ${lead_Info.Year_founded}\nFollowers: ${lead_Info.Followers}\nPhone: ${lead_Info.Phone}\nEmail: ${lead_Info.Email}\nCompany Full Address: ${lead_Info.Company_Street_Address}\nFacebook Page: ${lead_Info.Company_Facebook}\nInstagram Page: ${lead_Info.Company_Instagram}\nTwitter Page: ${lead_Info.Company_Twitter}\nDescription: ${lead_Info.Description}`);
-                                if (r == true) {
-                                    inser_Record(lead_Info, "Company")
-                                } else {}
-                            } else {
-                                inser_Record(lead_Info, "Company")
-                            }
-                    } catch {
-
-                    var contentText = text
-                        listOfEmails = contentText.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+(\.it|\.biz|\.com|\.net|\.co\.uk|\.fr|\.com\.br|\.de|\.es|\.nl|\.com\.au|\.in|\.ca|\.ru|\.co\.jp|\.be|\.be|\.com\.mx|\.co|\.id|\.com|\.sg|\.ch|\.net\.au)+/gi);
-                    if (listOfEmails !== null) {
-                        listOfEmails.forEach(function (email0) {
-                            if (email0 == ".@.null" || email0.includes("sentry-next.") || email0.includes("example.com") || email0.includes("youremail") || email0.includes("name@")) {}
-                            else {
-                                email = email0
-                            }
-                        })
-                    } else {
-                        email = "null"
-                    }
-                    if (phone_Bool == false) {
-                        let phone_confirmed;
-                        phone_n = doc.querySelector('a[href ^= "tel:"]')
-                            if (phone_n != null) {
-                                console.log(phone_n.href.substring(4))
-                                phone_confirmed = phone_n.href.substring(4)
-                            } else {
-                                try {
-                                    console.log("INSIDE PHONE REGEX")
-                                    phone_n = text.match(/([(+]{1,2}[\d]{3}([) ]|[-]|[)]){1}[\d]{3}([-. ])?[\d]{4})|(([(]|[(+]){0,2}[\d]{1,3}[) -]{1,2}(([\d]{7,10})|([\d]{3,4}[ -\.][\d]{6,7}))|((\d){3}[-]{1}(\d){3})[-]{1}[\d]{3,4})+/)
-                                        if (phone_n != null) {
-                                            phone_confirmed = phone_n[0]
-                                        }
-                                } catch {
-                                    console.log("NO PHONE FOUND WITH REGEX")
-                                    phone_confirmed = "null"
-                                }
-                            }
-                            lead_Info.Phone = phone_confirmed
-                    }
-                    lead_Info.Email = email
-                        //If auto confirm toggle is OFF, ask for confirmation
-                        if (await LS.getItem("auto-confirmation-ON-OFF-TOGGLE") == "OFF" && await LS.getItem("auto-confirmation-LIST-MODE") == "OFF" && await LS.getItem("auto-confirmation-LIST-CONTACTS-MODE") == "OFF") {
-                            var r = confirm(`Leads Information Below, Confirm Please\n\nName: ${lead_Info.Name}\nIndustry: ${lead_Info.Industry}\nCompany_Domain: ${lead_Info.Company_Domain}\nCompany Size: ${lead_Info.Company_size}\nAddress: ${lead_Info.Address}\nYear Founded: ${lead_Info.Year_founded}\nFollowers: ${lead_Info.Followers}\nPhone: ${lead_Info.Phone}\nEmail: ${lead_Info.Email}\nCompany Full Address: ${lead_Info.Company_Street_Address}\nFacebook Page: ${lead_Info.Company_Facebook}\nInstagram Page: ${lead_Info.Company_Instagram}\nTwitter Page: ${lead_Info.Company_Twitter}\nDescription: ${lead_Info.Description}`);
-                            if (r == true) {
-                                inser_Record(lead_Info, "Company")
-                            } else {}
-                        } else {
-                            inser_Record(lead_Info, "Company")
-                        }
-                }
-            }).catch(async function (error) {
-                console.log(error);
-                if (await LS.getItem("auto-confirmation-ON-OFF-TOGGLE") == "OFF" && await LS.getItem("auto-confirmation-LIST-MODE") == "OFF" && await LS.getItem("auto-confirmation-LIST-CONTACTS-MODE") == "OFF") {
-                    var r = confirm(`Leads Information Below, Confirm Please\n\nName: ${lead_Info.Name}\nIndustry: ${lead_Info.Industry}\nCompany_Domain: ${lead_Info.Company_Domain}\nCompany Size: ${lead_Info.Company_size}\nAddress: ${lead_Info.Address}\nYear Founded: ${lead_Info.Year_founded}\nFollowers: ${lead_Info.Followers}\nPhone: ${lead_Info.Phone}\nEmail: ${lead_Info.Email}\nCompany Full Address: ${lead_Info.Company_Street_Address}\nFacebook Page: ${lead_Info.Company_Facebook}\nInstagram Page: ${lead_Info.Company_Instagram}\nTwitter Page: ${lead_Info.Company_Twitter}\nDescription: ${lead_Info.Description}`);
-                    if (r == true) {
-                        inser_Record(lead_Info, "Company")
-                    } else {}
-                } else {
-                    inser_Record(lead_Info, "Company")
-                }
-                reject()
-            });
-        } 
-        else {
-            if (await LS.getItem("auto-confirmation-ON-OFF-TOGGLE") == "OFF" && await LS.getItem("auto-confirmation-LIST-MODE") == "OFF" && await LS.getItem("auto-confirmation-LIST-CONTACTS-MODE") == "OFF") {
-                var r = confirm(`Leads Information Below, Confirm Please\n\nName: ${lead_Info.Name}\nIndustry: ${lead_Info.Industry}\nCompany_Domain: ${lead_Info.Company_Domain}\nCompany Size: ${lead_Info.Company_size}\nAddress: ${lead_Info.Address}\nYear Founded: ${lead_Info.Year_founded}\nFollowers: ${lead_Info.Followers}\nPhone: ${lead_Info.Phone}\nEmail: ${lead_Info.Email}\nCompany Full Address: ${lead_Info.Company_Street_Address}\nFacebook Page: ${lead_Info.Company_Facebook}\nInstagram Page: ${lead_Info.Company_Instagram}\nTwitter Page: ${lead_Info.Company_Twitter}\nDescription: ${lead_Info.Description}`);
-                if (r == true) {
-                    inser_Record(lead_Info, "Company")
-                } else {}
-            } else {
-                inser_Record(lead_Info, "Company")
-            }
-        }
-        resolve()
-    }).catch((error) => {
-        inser_Record(lead_Info, "Company")
-        console.log("FETCH ERROR CATCHED")
-        reject()
-    })
-}
-
 async function get_Website_email(domain) {
     console.log("inside get Email, website >>> " + domain)
     return new Promise ((res, rej) => {
         let set_emails = new Set;
         let phone_confirmed = new Set;
         let title;
+        let company_Facebook;
+        let company_Twitter;
+        let company_Instagram;
         if (domain != "null") {
-        //try {
+        
             const fetch_Response = fetch(domain).then(function(response) {
-                return response.text()}).then((txt) => {       
+                return response.text()}).then((txt) => {  
                     let contact_Page_full;
                     try {
                         title = txt.match(/(?<=\<title\>).*?(?=\<)/)[0]
                     }
                     catch {}
+                    try {
+                        company_Facebook = txt.match(/(?<=href=")https\:\/\/(www.||)facebook.com.*?(?=\")/)[0]
+                    } catch {
+                        company_Facebook = "Null"
+                    }
+                    try {
+                        company_Twitter = txt.match(/(?<=href=")https\:\/\/(www.||)twitter.com.*?(?=\")/)[0]
+                    } catch {
+                        company_Twitter = "Null"
+                    }
+                    try {
+                        company_Instagram = txt.match(/(?<=href=")https\:\/\/(www.||)instagram.com.*?(?=\")/)[0]
+                    } catch {
+                        company_Instagram = "Null"
+                    }
                     //defining Contact Page
                     try {
                         let contact_page_href_list = txt.match(/href=(["'])(?:(?=(\\?))\2.)*(contatti|contact|contacts)\1/ig)
@@ -1096,15 +824,17 @@ async function get_Website_email(domain) {
                                     else {
                                         all_phones = "N/A"
                                     }
-                                    res(all_phones, list_of_emails)
+                                    res({phones: all_phones, emails: list_of_emails, instagram: company_Instagram, facebook: company_Facebook, twitter: company_Twitter})
+
                                 }
                                 else {
                                     list_of_emails = null
                                     console.log("No emails found on Contact page and home page Found");
-                                    res({phones: "N/A", emails: "N/A"})
+                                    res({phones: "N/A", emails: "N/A", instagram: company_Instagram, facebook: company_Facebook, twitter: company_Twitter})
                                 }
                                     
-                                }).catch((error) => console.log(error), res({phones: "N/A", emails: "N/A"}))
+                                }).catch((error) => console.log(error), res({phones: "N/A", emails: "N/A", instagram: company_Instagram, facebook: company_Facebook, twitter: company_Twitter})
+                                )
                                 .then((value) => {
                                     console.log(value)
                                 })
@@ -1117,326 +847,31 @@ async function get_Website_email(domain) {
                         else {
                             all_phones = null
                         }
-                        res({phones: all_phones, emails: list_of_emails})
+                        res({phones: all_phones, emails: list_of_emails, instagram: company_Instagram, facebook: company_Facebook, twitter: company_Twitter})
+
                     }
                 }).catch(function(error) {
                     res({phones: "N/A", emails: "N/A"})
                     console.log(error)})
         }
         else {
-            res({phones: "N/A", emails: "N/A"})
+            res({phones: "N/A", emails: "N/A", instagram: company_Instagram, facebook: company_Facebook, twitter: company_Twitter})
         }
     })
 }
 
-
-function inser_Record(record, company_or_Contact) {
-    console.log("inser_Record(record, company_or_Contact); Company or contact? : " + company_or_Contact);
-
-    let insert_transaction;
-    let objectS;
-    if (company_or_Contact == "Company") {
-        insert_transaction = db_Companies.transaction("Company", "readwrite");
-        objectS = insert_transaction.objectStore("Company");
-    } else {
-        insert_transaction = db_Contacts.transaction("Contact", "readwrite");
-        objectS = insert_transaction.objectStore("Contact");
-    }
-    return new Promise((resolve, reject) => {
-        insert_transaction.oncomplete = function () {
-            resolve = true;
-        }
-        insert_transaction.onerror = async function (event) {
-            console.log("Problem Adding Transaction");
-            console.log(event.target.error);
-            if (company_or_Contact == "Contact-Enrichment") {
-                await LS.setItem("Contact-Enrichment-Extracted-and-Sent-to-API", "true");
-                job_experience_array_new_url = null;
-            }
-            else if (is_Automation == true) {
-                is_Automation = false
-                automation_extraction_completed = true
-            }
-            resolve = false;
-        }
-        let requ;
-
-        if (company_or_Contact == "Company") {
-console.log("Adding company: " + record);
-            requ = objectS.add(record);
-        } else {
-            requ = objectS.add({
-                "linkedin_page": record.linkedin_page
-            })
-        }
-
-        requ.onsuccess = function () {
-            console.log("All Transactions ADDED to Database")
-            let value = objectS.count()
-            value.onsuccess = async function () {
-                //tick button
-                if (company_or_Contact == "Company") {
-                    await LS.setItem("Company_Leads_Count", value.result)
-                    call_API(record, "Company")
-                } else if (company_or_Contact == "Contact-Extract-Next") {
-                    await LS.setItem("Contact_Leads_Count", value.result)
-                    call_API(record, "Contact")
-                    try {
-                        let list_to_Extract = await LS.getItem('Extraction_list').split(",")
-                            console.log(list_to_Extract)
-                            let next_Lead = list_to_Extract.shift()
-                            console.log(next_Lead)
-                            if (list_to_Extract.length == null) {
-
-                                var r = confirm(`All Leads Extracted, Do you wish to extract more?`);
-                                if (r == true) {
-                                    chrome.tabs.sendMessage(parseInt(await LS.getItem("tab_Id_extract_All_function")), {
-                                        message: "Extract-Next-Pages"
-                                    })
-                                } else {}
-                            } else {
-                                setTimeout(async () => {
-                                    window.open(next_Lead + '?extr_id=', "Extr-All-Clicked", "height=100,width=200", "_blank");
-                                    await LS.setItem("Extraction_list", list_to_Extract)
-                                }, 3000)
-                            }
-                    } catch {
-                        console.log("***inside Catch***")
-                        var r = confirm(`All Leads Extracted, Do you wish to extract more?`);
-                        if (r == true) {
-                            chrome.tabs.sendMessage(parseInt(await LS.getItem("tab_Id_extract_All_function")), {
-                                message: "Extract-Next-Pages"
-                            })
-                        } else {}
-                    }
-                } else if (company_or_Contact == "Contact-Enrichment") {
-                    call_API(record, "Contact-Enrichment")
-                } else if (company_or_Contact == "AUTOLIST-Contact-Extract-Next") {
-                    console.log("else if (company_or_Contact == \"AUTOLIST-Contact-Extract-Next\")");
-                    await LS.setItem("Contact_Leads_Count", value.result)
-                    call_API(record, "Contact")
-                    let list_to_Extract = await LS.getItem('AUTOLIST_Extraction_list').split(",")
-                    async function check_then_Open_Tab_Next_Employee() {
-                        console.log("else if (company_or_Contact == \"AUTOLIST-Contact-Extract-Next\") ==> async function check_then_Open_Tab_Next_Employee()");
-                        while (true) {
-                            let leads_to_Check = list_to_Extract[0]
-                                if (leads_to_Check != null && leads_to_Check != "") {
-                                    console.log("else if (company_or_Contact == \"AUTOLIST-Contact-Extract-Next\") ==> REMOVED check_then_Open_Tab_Next_Employee() ==> (leads_to_Check != null && leads_to_Check != \"\")");
-                                    console.log(leads_to_Check)
-                                    //let check_if_Employee_Was_Already_Extracted = await check_Record_Existance(leads_to_Check, "Contact")
-                                    if (list_to_Extract.length == 0 || leads_to_Check.length == 0) {
-                                        await LS.setItem("AUTOLIST_All_Employees_for_this_keyword_Extracted", "true")
-                                        break
-                                    }
-                                        //if (check_if_Employee_Was_Already_Extracted == false) {
-
-                                            //} 
-                                            //if lead was already extracted, remove it from array and continue loop.
-                                    else {
-                                        window.open(list_to_Extract.shift(), "Autolist-Contact", "height=100,width=200", "_blank");
-                                        await LS.setItem('AUTOLIST_Extraction_list', list_to_Extract)
-                                        break
-                                    }
-                                } else {
-                                    await LS.setItem("AUTOLIST_All_Employees_for_this_keyword_Extracted", "true")
-                                    break
-                                }
-                        }
-                    }
-                    setTimeout(() => {
-                        check_then_Open_Tab_Next_Employee()
-                    }, 3000)
-
-                } 
-                else {
-                    await LS.setItem("Contact_Leads_Count", value.result)
-                    call_API(record, "Contact")
-                }
-                console.log("ALL ADDED to Database")
-            }
-        }
-
-        requ.onerror = async function () {
-            console.log("Error requ adding transaction")
-            if (await LS.getItem("AUTOLIST_Company_About_Received") == "true") {
-                //If contact came from auto list mode, set back to false
-                await LS.setItem("AUTOLIST_Company_About_Received", "false")
-                //Allow the employees to be scraped
-                await LS.setItem("AUTOLIST_Company_About_Fetched", "true")
-            } else if (company_or_Contact == "Contact-Extract-Next") {
-                console.log("next is extract NEXT LEAD")
-                try {
-                    let list_to_Extract = await LS.getItem('Extraction_list').split(",")
-                        let next_Lead = list_to_Extract.shift()
-                        if (next_Lead.length == 0 || next_Lead.length == "0") {
-                            var r = confirm(`All Leads Extracted, Do you wish to extract more?`);
-                            if (r == true) {
-                                chrome.tabs.sendMessage(parseInt(await LS.getItem("tab_Id_extract_All_function")), {
-                                    message: "Extract-Next-Pages",
-                                    number_of_pages: parseInt(storageCache.number_of_pages_to_scroll)
-                                })
-                            } else {}
-                        } else {
-                            window.open(next_Lead, "Extr-All-Clicked", "height=100,width=200", "_blank");
-                            await LS.setItem("Extraction_list", list_to_Extract)
-                        }
-                } catch {
-                    console.log("Inside catch, list ended")
-                    var r = confirm(`All Leads Extracted, Do you wish to extract more?`);
-                    if (r == true) {
-                        chrome.tabs.sendMessage(parseInt(await LS.getItem("tab_Id_extract_All_function")), {
-                            message: "Extract-Next-Pages",
-                            number_of_pages: parseInt(storageCache.number_of_pages_to_scroll)
-                        })
-                    } else {}
-                }
-            } else if (company_or_Contact == "AUTOLIST-Contact-Extract-Next") {
-                let list_to_Extract = await LS.getItem('AUTOLIST_Extraction_list').split(",")
-                    let next_Lead = list_to_Extract.shift()
-                    //if no more leads to extract, stop employee automation
-                    if (next_Lead.length == 0 || next_Lead.length == "0") {
-                        await LS.setItem("AUTOLIST_All_Employees_for_this_keyword_Extracted", "true")
-                        chrome.runtime.sendMessage({
-                            message: "message_For_Console",
-                            message_to_display: `All Leads Extracted`
-                        })
-                    } else {
-                        window.open(next_Lead, "Autolist-Contact", "height=100,width=200", "_blank");
-                        await LS.setItem("AUTOLIST_Extraction_list", list_to_Extract)
-                    }
-            }
-        }
-
-    });
-}
-
-
-async function call_API(record, company_Or_Contact) {
-    console.log("call_API(record, company_Or_Contact): ", record);
-    var xhr = new XMLHttpRequest();
-    if (company_Or_Contact == "Company") {
-        xhr.open("POST", api_URL_Company + '/' + storageCache.user_id + '/' + storageCache.list_code);
-    } else if (company_Or_Contact == "Contact-Enrichment") {
-        xhr.open("POST", api_URL_Contact + '/' + storageCache.user_id + '/' + storageCache.list_code)
-    } else {
-        xhr.open("POST", api_URL_Contact + '/' + storageCache.user_id + '/' + storageCache.list_code)
-    }
-    xhr.setRequestHeader("Accept", "application/json");
-    xhr.setRequestHeader("Content-Type", "application/json");
-
-    xhr.onreadystatechange = async function () {
-        if (xhr.readyState === 4) {
-            if (xhr.status.toString().substring(0, 1) != "2") {
-                job_experience_array_new_url = null
-                    delete_Record(record, company_Or_Contact)
-                    chrome.notifications.create({
-                        type: 'basic',
-                        iconUrl: 'Images/128.png',
-                        title: `Bexten - AC | API ERROR`,
-                        message: JSON.stringify(xhr.response),
-                        priority: 1
-                    });
-                    if (await LS.getItem("AUTOLIST_Company_About_Received") == "true") {
-                        //If contact came from auto list mode, set back to false
-                        await LS.setItem("AUTOLIST_Company_About_Received", "false")
-                        //Allow the employees to be scraped
-                        await LS.setItem("AUTOLIST_Company_About_Fetched", "true")
-                    } else if (company_Or_Contact == "Contact-Enrichment") {
-                        await LS.setItem("Contact-Enrichment-Extracted-and-Sent-to-API", "true")
-                    }
-            } 
-            else {
-                if (await LS.getItem("AUTOLIST_Company_About_Received") == "true") {
-                    //If contact came from auto list mode, set back to false
-                    await LS.setItem("AUTOLIST_Company_About_Received", "false")
-                    //Allow the employees to be scraped
-                    await LS.setItem("AUTOLIST_Company_About_Fetched", "true")
-                } else if (company_Or_Contact == "Contact-Enrichment") {
-                    await LS.setItem("Contact-Enrichment-Extracted-and-Sent-to-API", "true")
-                } else if (is_Automation == true) {
-                    is_Automation = false
-                    automation_extraction_completed = true
-                }
-                job_experience_array_new_url = null
-            }
-            await LS.setItem("email_found", null)
-            await LS.setItem("company_ID", null)
-        }
-    };
-    let api_message;
-    function check_NaN(val) {
-        if (parseInt(val) != parseInt(val)) {
-            return 0;
-        }
-        return parseInt(val);
-    }
-
-    if (company_Or_Contact == "Company") {
-        api_message = {
-            "name": record.Name,
-            "description": record.Description,
-            "industry": record.Industry,
-            "company_domain": record.Company_Domain,
-            "company_size": check_NaN(String(record.Company_size).replace(',', '')),
-            "year_founded": record.Year_founded,
-            "linkedin_page": record.LinkedIn_page,
-            "followers": record.Followers,
-            "phone": record.Phone,
-            "email": record.Email,
-            "logo_filelink": record.Logo,
-            "specialties": "null",
-            "source": "linkedin",
-            "created_by": check_NaN(storageCache.user_id),
-            "facebookpage": record.Company_Facebook,
-            "instagrampage": record.Company_Instagram,
-            "twitterpage": record.Company_Twitter,
-            "running_code": storageCache.list_code,
-            "linkedin_id": record.company_id,
-            "address": [{
-                    "full_address": record.Address,
-                    "addresstype": ""
-                }
-            ]
-        }
-    } 
-    else {
-
-        api_message = [
-            record
-        ]
-    }
-    console.log(api_message)
-    if (await LS.getItem("auto-confirmation-ON-OFF-TOGGLE") == "OFF" && await LS.getItem("auto-confirmation-LIST-MODE") == "OFF" && await LS.getItem("auto-confirmation-LIST-CONTACTS-MODE") == "OFF") {
-        if (company_Or_Contact == "Contact") {
-            var r = confirm(`Leads Information Below, Confirm Please\n\nFirst Name: ${record.first_Name}\nLast Name: ${record.last_name}\nEmail: ${record.email}\nAbout: ${record.about}\nPicture Url: ${record.picture_url}\nLinkedin Page: ${record.linkedin_page}\nFull Addres: ${record.full_address}\nAbout: ${record.about}\nLanguages: ${record.languages}\nExperience: ${record.experience}`);
-            if (r == true) {
-                console.log(api_message)
-                xhr.send(JSON.stringify(api_message));
-                // inser_Record(record)
-            } else {
-                delete_Record(record, company_Or_Contact)
-            }
-        } 
-        else {
-            xhr.send(JSON.stringify(api_message));
-        }
-    } else {
-        xhr.send(JSON.stringify(api_message));
-    }
-
-}
-
 async function call_API_fetch(record, company_Or_Contact) {
     console.log("call_API_fetch()")
+    console.log(company_Or_Contact)
     //defining right url API
     if (company_Or_Contact == "Company") {
-        api_url = api_URL_Company + '/' + storageCache.user_id + '/' + storageCache.list_code;
+        api_url = api_URL_Company + '/' + await LS.getItem("user_id") + '/' + await LS.getItem("list_code");
     } 
     else if (company_Or_Contact == "Contact-Enrichment") {
-        api_url = api_URL_Contact + '/' + storageCache.user_id + '/' + storageCache.list_code
+        api_url = api_URL_Contact + '/' + await LS.getItem("user_id") + '/' + await LS.getItem("list_code")
     } 
     else {
-        api_url = api_URL_Contact + '/' + storageCache.user_id + '/' + storageCache.list_code
+        api_url = api_URL_Contact + '/' + await LS.getItem("user_id") + '/' + await LS.getItem("list_code")
     }
     //Defining API message
     let api_message;
@@ -1461,11 +896,12 @@ async function call_API_fetch(record, company_Or_Contact) {
             "logo_filelink": record.Logo,
             "specialties": "null",
             "source": "linkedin",
-            "created_by": check_NaN(storageCache.user_id),
+            "ce_reg_key": await LS.getItem("ce_reg_key"),
+            "created_by": await LS.getItem("user_id"),
             "facebookpage": record.Company_Facebook,
             "instagrampage": record.Company_Instagram,
             "twitterpage": record.Company_Twitter,
-            "running_code": storageCache.list_code,
+            "running_code": await LS.getItem("list_code"),
             "linkedin_id": record.company_id,
             "address": [{
                     "full_address": record.Address,
@@ -1475,7 +911,6 @@ async function call_API_fetch(record, company_Or_Contact) {
         }
     } 
     else {
-
         api_message = [
             record
         ]
@@ -1486,8 +921,9 @@ async function call_API_fetch(record, company_Or_Contact) {
         body: api_message
     })
     .then((response) => {
+        console.log(api_message)
         console.log(response)
-        return response.json()})
+        return response})
     .then(async (json) => {
         job_experience_array_new_url = null
         if (is_Automation == true) {
@@ -1496,31 +932,22 @@ async function call_API_fetch(record, company_Or_Contact) {
         }
         await LS.setItem("email_found", null)
         await LS.setItem("company_ID", null)
-    })
-}
-
-async function enrich_contacts_by_li_profile(total_contacts_list) {
-    console.log("enrich_contacts_by_li_profile(total_contacts_list): ", total_contacts_list.length);
-    //I'M HERE
-    chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'Images/128.png',
-        title: 'Scrapping ' + Object.keys(total_contacts_list).length + ' Automatic',
-        message: 'Starting',
-        priority: 1
-    }) //done
-    let scrapped_total_contacts = 0; //done
-    for (let i = 0; i < total_contacts_list.length; i++) {
-        let clean_url = total_contacts_list[i].linkedin_profile
-
-            chrome.runtime.sendMessage({
-                message: "message_For_Console",
-                message_to_display: `Extracting: ${clean_url}`
-            })
-            if (clean_url) {
-                await extract_next_employee_Enrichment(clean_url)
+        let counters = await LS.getItem("Counters")
+        if (json.status != 200) {//If error, add it to failures
+            counters[counters.length - 1].failures++
+            await LS.setItem("Counters", counters);
+        }
+        else {
+            if (company_Or_Contact == "Company") {
+                counters[counters.length - 1].accounts++
+                await LS.setItem("Counters", counters);
             }
-    }
+            else {
+                counters[counters.length - 1].contacts++
+                await LS.setItem("Counters", counters);
+            }
+        }
+    })
 }
 
 async function extract_next_employee_Enrichment(url) {
@@ -1543,9 +970,18 @@ async function extract_next_employee_Enrichment(url) {
     })
 }
 
-function call_API_any_company_to_extract() {
+async function call_API_any_company_to_extract() {
     console.log("call_API_any_company_to_extract() ");
-
+	if(await LS.getItem("ce_reg_key") == undefined || await LS.getItem("ce_reg_key")=='') {
+		chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'Images/128.png',
+            title: "Bexten - Please LOG IN First",
+            message: "Not Logged In Yet",
+            priority: 1
+        })
+        return;
+	}
     fetch(api_get_next_company, {
         // Adding method type
         method: "GET"
@@ -1555,7 +991,7 @@ function call_API_any_company_to_extract() {
         console.log(json)
 
             if (json == null) {
-                console.error("Server Response Empty, no more company to scrape automatically");
+                console.log("Server Response Empty, no more company to scrape automatically");
                 process_is_active = false;
             }
             //If got a valid response

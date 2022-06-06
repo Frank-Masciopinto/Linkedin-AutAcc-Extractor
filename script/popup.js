@@ -1,7 +1,65 @@
 let api_ce_login = "https://api.bextra.io/ce/login";
-
+let LS = {
+    getAllItems: () => chrome.storage.local.get(),
+    getItem: async key => (await chrome.storage.local.get(key))[key],
+    setItem: (key, val) => chrome.storage.local.set({[key]: val}),
+    removeItems: keys => chrome.storage.local.remove(keys),
+  };
 document.addEventListener('DOMContentLoaded', restore_options());
 document.getElementById('loginbtn').addEventListener('click', login);
+
+//Create Table for Counters
+let table = document.createElement('table');
+let thead = document.createElement('thead');
+let tbody = document.createElement('tbody');
+
+table.appendChild(thead);
+table.appendChild(tbody);
+
+// Adding the entire table to the body tag
+document.getElementById('counters-table').appendChild(table);
+
+// Creating and adding data to first row of the table
+let row_1 = document.createElement('tr');
+let heading_1 = document.createElement('th');
+heading_1.innerHTML = "Date";
+let heading_2 = document.createElement('th');
+heading_2.innerHTML = "Accounts";
+let heading_3 = document.createElement('th');
+heading_3.innerHTML = "Contacts";
+let heading_4 = document.createElement('th');
+heading_4.innerHTML = "Failures";
+
+row_1.appendChild(heading_1);
+row_1.appendChild(heading_2);
+row_1.appendChild(heading_3);
+row_1.appendChild(heading_4);
+thead.appendChild(row_1);
+
+
+async function add_counters_to_table() {
+	let counters = await LS.getItem("Counters")
+	console.log(counters)
+	for (let i=0; i < counters.length; i++) {
+		// Creating and adding data to second row of the table
+		let row_2 = document.createElement('tr');
+		let row_2_data_1 = document.createElement('td');
+		row_2_data_1.innerHTML = counters[i].index;
+		let row_2_data_2 = document.createElement('td');
+		row_2_data_2.innerHTML = counters[i].accounts;
+		let row_2_data_3 = document.createElement('td');
+		row_2_data_3.innerHTML = counters[i].contacts;
+		let row_2_data_4 = document.createElement('td');
+		row_2_data_4.innerHTML = counters[i].failures;
+
+		row_2.appendChild(row_2_data_1);
+		row_2.appendChild(row_2_data_2);
+		row_2.appendChild(row_2_data_3);
+		row_2.appendChild(row_2_data_4);
+		tbody.appendChild(row_2);
+	}
+}
+add_counters_to_table()
 
 // Saves options to chrome.storage
 function save_options(_name, _regkey, _userid, _li_user, _li_pwd, _li_member_id, _site_url) {

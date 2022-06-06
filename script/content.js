@@ -123,7 +123,7 @@ function extract_Company_Information() {
         company_name = no_value;
     }
     try {
-        overview = document.querySelector(".break-words").innerText;
+        overview = document.querySelector("section > .break-words").innerText;
     } catch {
         overview = no_value;
     }

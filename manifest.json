@@ -1,6 +1,6 @@
 {
 	"name": "BEXTEN_Auto_Acc - Data Research and Enrichment",
-	"version": "2.00",
+	"version": "3.00",
 	"description": "Extract lead information from any company or profile Linkedin page",
 	"manifest_version": 3,
 	"background": {
