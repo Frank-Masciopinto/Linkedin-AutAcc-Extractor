@@ -18,7 +18,8 @@ let is_Automation = false;
 let process_is_active = false;
 let order_index = 1;
 let set_back_for_awhile = 1;
-
+let Message_Connect;
+let Company_Name;
 
 chrome.runtime.onInstalled.addListener(async (details) => {
     console.log("ONINSTALL")
@@ -43,6 +44,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.message === "fetch_phone") {  //called from content.js and content_sales_navigator.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"fetch_phone\" ==> One message received", request.payload);
         let fetched_info = await get_Website_email(request.payload.Company_Domain)
+        is_Automation = true;
         console.log("***********HERE****************")
         console.log(fetched_info)
         request.payload.Extra_phones = fetched_info.Phone
@@ -50,6 +52,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         request.payload.Company_Facebook = fetched_info.facebook
         request.payload.Company_Instagram = fetched_info.instagram
         request.payload.Company_Twitter = fetched_info.twitter
+        await LS.setItem("linkedin_correct_URL", request.payload.LinkedIn_page)
+        call_API_fetch(request.payload, "Company")
         return true;
     }
     else if (request.message === "Automation_Extracted_ACCOUNT") { //called from content.js
@@ -146,20 +150,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         return true;
     } 
     else if (request.message === "Connect?") { //called from content.js and content_sales_navigator.js
-        if (await LS.getItem("Message_Connect") == "null") {
+        if (Message_Connect == null) {
             console.log("Message for connect is null!")
             sendResponse({
                 answer: false
             });
+            return true;
         } else {
             console.log("Message for connect exist below")
-            console.log(await LS.getItem("Message_Connect"))
+            console.log(Message_Connect)
             sendResponse({
-                answer: await LS.getItem("Message_Connect"),
-                company_Name: await LS.getItem("Company_Name")
+                answer: Message_Connect,
+                company_Name: Company_Name
             });
+            return true;
         }
-        return;
     } 
     else if (request.message === "Company_Page_Not_Found") { //called from content.js
         console.log("chrome.runtime.onMessage.addListener ==> if \"Company_Page_Not_Found\" ==> request.payload: ", request.payload);
@@ -440,7 +445,7 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         async function inject_Js(link, tabId) {
             if (link.includes("chrome://") || link.includes("chrome-extension://") || link.includes("developer.chrome.com") || link.includes("chrome.google.com/webstore") || link.includes("about:") || link.includes("addons.mozilla.org") || link.includes("moz-extension://")) {
             } 
-			else if (link.includes("linkedin.com") && !link.includes("/sales/") && (link.includes("/about/") || link.includes("/people/")) || link.includes("linkedin.com/in/")) {
+			else if (link.includes("linkedin.com") && !link.includes("/sales/") && await LS.getItem("tab_Injected") != tabId && (link.includes("/about/") || link.includes("/people/")) || link.includes("linkedin.com/in/")) {
                 console.log("Inside OnUpdate injecting COntent")    
                 await LS.setItem("Last Extracted", link);
                 await LS.setItem("tab_Injected", tabId);
@@ -583,7 +588,7 @@ async function scrape_company_About_and_employees_AUTO(company_url) {
         let keywords = await LS.getItem("Keywords")
         let company_name = company_url.replace(/(https\:\/\/)(\w+)\.linkedin\.com\/company\//i, '').replace(/\//i, '')
         let result_Company_Extraction = await extract_Next_Company_Lead(company_url)
-        await LS.setItem("Company_Name", company_name)
+        Company_Name = company_name
         if (result_Company_Extraction == "Fetched") { //update popup counters if fetched
             chrome.notifications.create({
                 type: 'basic',
@@ -604,9 +609,9 @@ async function scrape_company_About_and_employees_AUTO(company_url) {
                     let key_length = keywords_array.length
                         for (i = 0; i < key_length; i++) {
                             if (keywords_array[i].send_connect_request == true) {
-                                await LS.setItem("Message_Connect", keywords_array[i].msg_template[0].body)
+                                Message_Connect = keywords_array[i].msg_template[0].body
                             } else {
-                                await LS.setItem("Message_Connect", null)
+                                Message_Connect = null
                             }
                             chrome.notifications.create({
                                 type: 'basic',
@@ -665,13 +670,19 @@ async function extract_Next_Company_Lead(lead_json) {
 
 async function extract_All_Employees_from_Each_Keyword(lead_json, keyword, result_extract_Company) {
     console.log("extract_All_Employees_from_Each_Keyword()");
-    return new Promise((res, rej) => {
+    return new Promise(async(res, rej) => {
         let url;
         if (typeof lead_json === 'string') {
             url = lead_json.match(/^(.*?)linkedin.(\w+)\/(company|school)\/([^/]*)/)[0]
         } 
         else {
-            url = lead_json.linkedin_page.match(/^(.*?)linkedin.(\w+)\/(company|school)\/([^/]*)/)[0]
+            if (await LS.getItem("linkedin_correct_URL") != null) {
+                url = await LS.getItem("linkedin_correct_URL")
+                url = url.match(/^(.*?)linkedin.(\w+)\/(company|school)\/([^/]*)/)[0]
+            }
+            else {
+                url = lead_json.linkedin_page.match(/^(.*?)linkedin.(\w+)\/(company|school)\/([^/]*)/)[0]
+            }
         }
         if (!url.includes("/showcase/") && result_extract_Company == "Fetched") {
             url = url + `/people/?keywords=${keyword}&aut_cont`
@@ -1017,10 +1028,12 @@ async function call_API_any_company_to_extract() {
                 if (wait_for_company_extract == "EXTENSION_STUCKED" || wait_for_company_extract == "404") {
                     await update_account_to_be_researched(json[0].campaign_id, json[0].id);
                     call_API_any_company_to_extract()
+                    await LS.setItem("linkedin_correct_URL", null)
                 }
                 else {
                     await extract_all_employees_for_keyword(json[0], json[0].keywords, "Fetched")
                     await update_account_to_be_researched(json[0].campaign_id, json[0].id);
+                    await LS.setItem("linkedin_correct_URL", null)
                     call_API_any_company_to_extract()
                 }
             }
@@ -1079,10 +1092,10 @@ async function extract_all_employees_for_keyword(lead_json, keywords) {
             console.log("there are keywords next loop to extract employee");
             for (let it = 0; it < key_length; it++) {
                 if (keywords[it].send_connect_request == true) {
-                    await LS.setItem("Message_Connect", keywords[i].msg_template[0].body);
+                    Message_Connect = keywords[i].msg_template[0].body;
                 } 
                 else {
-                    await LS.setItem("Message_Connect", null);
+                    Message_Connect = null;
                 }
                 await extract_All_Employees_from_Each_Keyword(lead_json, keywords[it].key, "Fetched");
                 
@@ -1101,4 +1114,4 @@ setInterval(() => {
     }
 }, 1800000);
 
-//setTimeout(() => {call_API_any_company_to_extract()}, 20);
+setTimeout(() => {call_API_any_company_to_extract()}, 20);

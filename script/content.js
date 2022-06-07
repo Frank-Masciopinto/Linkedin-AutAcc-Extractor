@@ -115,8 +115,15 @@ function extract_Company_Information() {
     let company_Phone;
     let company_Street_Address = [];
     let check_name;
-
+    let company_ID;
     let no_value = "null";
+
+    try {
+        company_ID = document.evaluate("//code[contains(., 'urn:li:member:')]", document, null, XPathResult.ANY_TYPE, null ).iterateNext().textContent.match(/\"urn\:li\:member\:(.*?),/)[1];
+    }
+    catch {
+        company_ID = no_value;
+    }
     try {
         company_name = document.querySelector("span[dir='ltr']").innerText;
     } catch {
@@ -213,6 +220,7 @@ function extract_Company_Information() {
         "Company_Instagram": no_value,
         "Company_Twitter": no_value,
         "Logo": company_Logo,
+        "Company_ID": company_ID,
         "Company_Street_Address": company_Street_Address
     };
     dom_txt = "";
@@ -242,6 +250,7 @@ function extract_Company_Information() {
             message: "fetch_phone",
             payload: record
         });
+        window.close();
     }
 }
 
